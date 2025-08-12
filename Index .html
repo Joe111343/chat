@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>78</title>
+<title>P2P 聊天（文字+語音+圖片+頭像）</title>
 <style>
   body {
     font-family: "Noto Sans TC", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     background: #f0f2f5;
-    max-width: 600px;
+    max-width: 620px;
     margin: 40px auto;
     color: #333;
   }
@@ -30,7 +30,7 @@
     margin-bottom: 12px;
     color: #34495e;
   }
-  input[type="text"], textarea {
+  input[type="text"], textarea, input[type="file"] {
     width: 100%;
     padding: 10px 14px;
     font-size: 1em;
@@ -40,7 +40,7 @@
     resize: none;
     font-family: inherit;
   }
-  input[type="text"]:focus, textarea:focus {
+  input[type="text"]:focus, textarea:focus, input[type="file"]:focus {
     border-color: #3498db;
     outline: none;
   }
@@ -69,6 +69,24 @@
     justify-content: space-between;
     margin-bottom: 15px;
   }
+  #myAvatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-right: 12px;
+    object-fit: cover;
+    border: 1.5px solid #3498db;
+    display: none;
+  }
+  #peerAvatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-left: 12px;
+    object-fit: cover;
+    border: 1.5px solid #2ecc71;
+    display: none;
+  }
   #myId {
     font-family: monospace;
     font-size: 0.95em;
@@ -77,6 +95,7 @@
     border-radius: 8px;
     border: none;
     user-select: all;
+    flex-grow: 1;
   }
   #logoutBtn {
     background: #e74c3c;
@@ -103,26 +122,55 @@
     white-space: pre-wrap;
   }
   .msg {
+    display: flex;
     margin: 6px 0;
-    padding: 8px 12px;
-    border-radius: 14px;
     max-width: 80%;
     word-wrap: break-word;
   }
   .msg.self {
-    background: #d6eaf8;
-    color: #2c3e50;
     margin-left: auto;
+    flex-direction: row-reverse;
   }
   .msg.peer {
+    margin-right: auto;
+  }
+  .msg .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.3px solid #999;
+    margin: 0 10px;
+    flex-shrink: 0;
+  }
+  .msg .text {
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: #d6eaf8;
+    color: #2c3e50;
+    font-size: 1em;
+    white-space: pre-wrap;
+    word-break: break-word;
+    cursor: default;
+  }
+  .msg.peer .text {
     background: #d5f5e3;
     color: #145a32;
-    margin-right: auto;
+  }
+  .msg .image-msg {
+    max-width: 240px;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
+  }
+  .msg .audio-msg {
+    cursor: pointer;
   }
   #inputArea {
     margin-top: 15px;
     display: flex;
     gap: 10px;
+    align-items: center;
   }
   #inputMsg {
     flex-grow: 1;
@@ -144,20 +192,47 @@
     font-weight: 700;
     border-radius: 12px;
   }
+  #voiceBtn, #imageSendBtn {
+    background: #27ae60;
+    padding: 8px 14px;
+    font-weight: 700;
+    border-radius: 12px;
+    cursor: pointer;
+    border: none;
+    color: white;
+    transition: background 0.3s ease;
+  }
+  #voiceBtn:hover, #imageSendBtn:hover {
+    background: #1e8449;
+  }
+  #voiceBtn.recording {
+    background: #c0392b;
+  }
+  #voiceBtn.recording:hover {
+    background: #922b21;
+  }
+  #imageInput {
+    display: none;
+  }
 </style>
 </head>
 <body>
 
-<h2></h2>
+<h2>P2P 聊天（文字+語音+圖片+頭像）</h2>
 
 <div id="loginSection">
   <label for="rawMyId">你的ID（可中文、英文、數字）:</label>
   <input type="text" id="rawMyId" placeholder="輸入你的ID" autocomplete="off" />
-  <button id="loginBtn">登入並建立連線</button>
+
+  <label for="avatarInput" style="margin-top:12px; display:block;">選擇頭像（可選）:</label>
+  <input type="file" id="avatarInput" accept="image/*" />
+
+  <button id="loginBtn" style="margin-top:12px;">登入並建立連線</button>
 </div>
 
 <div id="chatSection" style="display:none;">
-  <div>
+  <div style="display:flex; align-items:center; margin-bottom:12px;">
+    <img id="myAvatar" alt="我的頭像" />
     <input type="text" id="myId" readonly title="你的編碼ID（複製給對方）" />
     <button id="logoutBtn" title="登出並重置">登出</button>
   </div>
@@ -171,26 +246,36 @@
   <div id="chatbox"></div>
 
   <div id="inputArea">
-    <textarea id="inputMsg" placeholder="輸入訊息，按 Enter 送出" disabled></textarea>
+    <textarea id="inputMsg" placeholder="輸入訊息，按 Enter 送出，Shift+Enter 換行" disabled></textarea>
     <button id="sendBtn" disabled>送出</button>
+    <button id="voiceBtn" title="按住錄音，放開送出" disabled>🎤 錄音</button>
+    <button id="imageSendBtn" title="傳圖片" disabled>🖼️ 圖片</button>
+    <input type="file" id="imageInput" accept="image/*" />
   </div>
 </div>
 
-<!-- PeerJS CDN -->
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <script>
   let peer = null;
   let conn = null;
 
-  function base64UrlEncode(str) {
+  let myAvatarBase64 = null;
+  let peerAvatarBase64 = null;
+
+  let mediaRecorder = null;
+  let audioChunks = [];
+
+  // URL-safe Base64編碼（支援中文）
+  function base64Encode(str) {
     return btoa(unescape(encodeURIComponent(str)))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
   }
-
-  function base64UrlDecode(str) {
-    str = str.replace(/-/g, '+').replace(/_/g, '/');
+  function base64Decode(str) {
+    str = str
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
     while (str.length % 4) {
       str += '=';
     }
@@ -202,16 +287,12 @@
       const ctx = new AudioContext();
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
-
       oscillator.type = 'sine';
       oscillator.frequency.value = 800;
       gainNode.gain.value = 0.2;
-
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
-
       oscillator.start();
-
       setTimeout(() => {
         oscillator.stop();
         ctx.close();
@@ -221,13 +302,14 @@
     }
   }
 
-  function logMessage(text, isSelf) {
-    const chatbox = document.getElementById('chatbox');
-    const div = document.createElement('div');
-    div.className = 'msg ' + (isSelf ? 'self' : 'peer');
-    div.textContent = (isSelf ? '你: ' : '對方: ') + text;
-    chatbox.appendChild(div);
-    chatbox.scrollTop = chatbox.scrollHeight;
+  function defaultAvatar() {
+    return 'data:image/svg+xml;base64,' + btoa(`
+      <svg width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" fill="#bbb" rx="18" ry="18"/>
+        <circle cx="18" cy="12" r="7" fill="#eee"/>
+        <rect x="10" y="22" width="16" height="8" fill="#eee" rx="4" ry="4"/>
+      </svg>
+    `);
   }
 
   function setStatus(text) {
@@ -237,149 +319,356 @@
   function enableChat(enable) {
     document.getElementById('inputMsg').disabled = !enable;
     document.getElementById('sendBtn').disabled = !enable;
+    document.getElementById('voiceBtn').disabled = !enable;
+    document.getElementById('imageSendBtn').disabled = !enable;
     if(enable) document.getElementById('inputMsg').focus();
   }
 
-  function sendMessage(text) {
-    if (!conn || conn.open === false) return;
-    conn.send(text);
-    logMessage(text, true);
+  function loadAvatar() {
+    const avatarBase64 = localStorage.getItem('chat_avatar');
+    myAvatarBase64 = avatarBase64;
+    const img = document.getElementById('myAvatar');
+    if (avatarBase64) {
+      img.src = avatarBase64;
+      img.style.display = 'inline-block';
+    } else {
+      img.style.display = 'none';
+      img.src = '';
+    }
   }
 
-  document.getElementById('loginBtn').onclick = () => {
-    const rawId = document.getElementById('rawMyId').value.trim();
-    if (!rawId) {
-      alert('請輸入你的ID');
-      return;
+  function logMessage(content, isSelf, type = 'text') {
+    const chatbox = document.getElementById('chatbox');
+    const div = document.createElement('div');
+    div.className = 'msg ' + (isSelf ? 'self' : 'peer');
+
+    const avatar = document.createElement('img');
+    avatar.className = 'avatar';
+    avatar.src = isSelf ? (myAvatarBase64 || defaultAvatar()) : (peerAvatarBase64 || defaultAvatar());
+    avatar.alt = isSelf ? '你的頭像' : '對方頭像';
+
+    const contentDiv = document.createElement('div');
+    if(type === 'text') {
+      contentDiv.className = 'text';
+      contentDiv.textContent = content;
+    } else if(type === 'image') {
+      contentDiv.className = 'text';
+      const img = document.createElement('img');
+      img.src = content;
+      img.className = 'image-msg';
+      img.alt = '圖片訊息';
+      contentDiv.appendChild(img);
+    } else if(type === 'audio') {
+      contentDiv.className = 'text audio-msg';
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.src = content;
+      contentDiv.appendChild(audio);
     }
-    const encodedId = base64UrlEncode(rawId);
+    div.appendChild(avatar);
+    div.appendChild(contentDiv);
+    chatbox.appendChild(div);
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
+  // 傳送頭像給對方
+  function sendAvatar() {
+    if(!conn || conn.open === false) return;
+    if(!myAvatarBase64) return;
+    const msg = {
+      type: 'avatar',
+      data: myAvatarBase64
+    };
+    conn.send(msg);
+  }
 
-    peer = new Peer(encodedId, { debug: 2 });
+  // 初始化 PeerJS 與事件
+  function initPeer(rawId) {
+    if(peer) {
+      peer.destroy();
+      peer = null;
+    }
+    setStatus('建立 Peer ID...');
+    peer = new Peer(base64Encode(rawId));
 
-    peer.on('open', (id) => {
+    peer.on('open', id => {
+      setStatus('Peer ID 建立成功: ' + id);
       document.getElementById('myId').value = id;
-      setStatus('等待連線...');
       enableChat(false);
-      document.getElementById('loginSection').style.display = 'none';
-      document.getElementById('chatSection').style.display = 'block';
     });
 
-    peer.on('connection', (connection) => {
-      if (conn) {
-        connection.on('open', () => {
-          connection.send('已連線，拒絕新的連線');
-          connection.close();
-        });
+    peer.on('connection', connection => {
+      if(conn) {
+        connection.close(); // 不接受多重連線
         return;
       }
       conn = connection;
-      setupConnection();
+      setupConnectionHandlers();
     });
 
     peer.on('error', err => {
       alert('Peer 錯誤: ' + err);
-      setStatus('錯誤，請重新登入');
-      peer.destroy();
-      peer = null;
-      document.getElementById('loginBtn').disabled = false;
-      document.getElementById('rawMyId').disabled = false;
-    });
-
-    document.getElementById('loginBtn').disabled = true;
-    document.getElementById('rawMyId').disabled = true;
-  };
-
-  function setupConnection() {
-    setStatus('連線中...');
-    enableChat(false);
-
-    conn.on('open', () => {
-      setStatus('已連線');
-      enableChat(true);
-      logMessage('已連接對方', false);
-    });
-
-    conn.on('data', (data) => {
-      logMessage(data, false);
-      playBeep();
-    });
-
-    conn.on('close', () => {
-      setStatus('連線中斷');
-      enableChat(false);
-      conn = null;
-    });
-
-    conn.on('error', (err) => {
-      setStatus('錯誤: ' + err);
-      enableChat(false);
-      conn = null;
+      setStatus('錯誤：' + err);
     });
   }
 
-  document.getElementById('connectBtn').onclick = () => {
-    if (!peer) {
-      alert('請先登入');
+  function setupConnectionHandlers() {
+    setStatus('已連線，等待訊息...');
+    enableChat(true);
+    sendAvatar();
+
+    conn.on('data', data => {
+      if(typeof data === 'string') {
+        logMessage(data, false, 'text');
+        playBeep();
+      } else if(typeof data === 'object') {
+        if(data.type === 'avatar') {
+          peerAvatarBase64 = data.data;
+          document.getElementById('peerAvatar').src = peerAvatarBase64;
+          document.getElementById('peerAvatar').style.display = 'inline-block';
+        } else if(data.type === 'text') {
+          logMessage(data.data, false, 'text');
+          playBeep();
+        } else if(data.type === 'image') {
+          logMessage(data.data, false, 'image');
+          playBeep();
+        } else if(data.type === 'audio') {
+          logMessage(data.data, false, 'audio');
+          playBeep();
+        }
+      }
+    });
+
+    conn.on('close', () => {
+      setStatus('連線已斷開');
+      enableChat(false);
+      conn = null;
+      peerAvatarBase64 = null;
+      document.getElementById('peerAvatar').style.display = 'none';
+    });
+
+    conn.on('error', err => {
+      setStatus('連線錯誤: ' + err);
+      alert('連線錯誤: ' + err);
+    });
+  }
+
+  // 登入、建立peer
+  document.getElementById('loginBtn').addEventListener('click', () => {
+    const rawId = document.getElementById('rawMyId').value.trim();
+    if(!rawId) {
+      alert('請輸入有效的ID');
       return;
     }
-    if (conn) {
-      alert('已連線，請先重新整理頁面');
+    localStorage.setItem('chat_id', rawId);
+    loadAvatar();
+    initPeer(rawId);
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('chatSection').style.display = 'block';
+    setStatus('等待連線...');
+  });
+
+  // 連線對方
+  document.getElementById('connectBtn').addEventListener('click', () => {
+    if(conn) {
+      alert('已連線，請先登出再連接新對象');
       return;
     }
     const rawPeerId = document.getElementById('rawPeerId').value.trim();
-    if (!rawPeerId) {
+    if(!rawPeerId) {
       alert('請輸入對方ID');
       return;
     }
-    const peerId = base64UrlEncode(rawPeerId);
+    const peerId = base64Encode(rawPeerId);
+    setStatus('嘗試連接對方: ' + peerId);
     conn = peer.connect(peerId);
-    setupConnection();
-  };
 
-  // 按鈕送出訊息
-  document.getElementById('sendBtn').onclick = () => {
-    const input = document.getElementById('inputMsg');
-    const text = input.value.trim();
-    if (!text || !conn || conn.open === false) return;
-    sendMessage(text);
-    input.value = '';
-    input.focus();
-  };
+    conn.on('open', () => {
+      setStatus('已與 ' + peerId + ' 連線');
+      enableChat(true);
+      sendAvatar();
+    });
 
-  // 監聽 textarea 按鍵事件，Enter 送出，Shift+Enter 換行
-  document.getElementById('inputMsg').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // 防止換行
-      const input = e.target;
-      const text = input.value.trim();
-      if (!text) return;
-      sendMessage(text);
-      input.value = '';
-    }
+    conn.on('data', data => {
+      if(typeof data === 'string') {
+        logMessage(data, false, 'text');
+        playBeep();
+      } else if(typeof data === 'object') {
+        if(data.type === 'avatar') {
+          peerAvatarBase64 = data.data;
+          document.getElementById('peerAvatar').src = peerAvatarBase64;
+          document.getElementById('peerAvatar').style.display = 'inline-block';
+        } else if(data.type === 'text') {
+          logMessage(data.data, false, 'text');
+          playBeep();
+        } else if(data.type === 'image') {
+          logMessage(data.data, false, 'image');
+          playBeep();
+        } else if(data.type === 'audio') {
+          logMessage(data.data, false, 'audio');
+          playBeep();
+        }
+      }
+    });
+
+    conn.on('close', () => {
+      setStatus('連線已斷開');
+      enableChat(false);
+      conn = null;
+      peerAvatarBase64 = null;
+      document.getElementById('peerAvatar').style.display = 'none';
+    });
+
+    conn.on('error', err => {
+      setStatus('連線錯誤: ' + err);
+      alert('連線錯誤: ' + err);
+    });
   });
 
-  // 登出重置
-  document.getElementById('logoutBtn').onclick = () => {
-    if (conn) {
-      conn.close();
-      conn = null;
-    }
-    if (peer) {
+  // 登出，重置一切
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    if(peer) {
       peer.destroy();
       peer = null;
     }
-    document.getElementById('rawMyId').disabled = false;
-    document.getElementById('loginBtn').disabled = false;
-    document.getElementById('rawMyId').value = '';
-    document.getElementById('myId').value = '';
-    document.getElementById('rawPeerId').value = '';
-    document.getElementById('inputMsg').value = '';
-    document.getElementById('chatbox').innerHTML = '';
+    conn = null;
+    peerAvatarBase64 = null;
+    myAvatarBase64 = null;
+    localStorage.removeItem('chat_id');
+    localStorage.removeItem('chat_avatar');
     document.getElementById('loginSection').style.display = 'block';
     document.getElementById('chatSection').style.display = 'none';
+    document.getElementById('chatbox').innerHTML = '';
+    document.getElementById('rawMyId').value = '';
+    document.getElementById('myAvatar').style.display = 'none';
+    document.getElementById('peerAvatar').style.display = 'none';
     setStatus('尚未登入');
     enableChat(false);
-  };
+  });
+
+  // 傳送文字訊息
+  function sendMessage() {
+    if(!conn || conn.open === false) {
+      alert('尚未連線，無法傳送訊息');
+      return;
+    }
+    const msg = document.getElementById('inputMsg').value.trim();
+    if(!msg) return;
+    conn.send({type:'text', data: msg});
+    logMessage(msg, true, 'text');
+    document.getElementById('inputMsg').value = '';
+  }
+
+  // 監聽送出按鈕
+  document.getElementById('sendBtn').addEventListener('click', sendMessage);
+
+  // 監聽輸入框 Enter 送出，Shift+Enter 換行
+  document.getElementById('inputMsg').addEventListener('keydown', e => {
+    if(e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // 頭像選擇
+  document.getElementById('avatarInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')) {
+      alert('請選擇圖片檔案');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      myAvatarBase64 = reader.result;
+      localStorage.setItem('chat_avatar', myAvatarBase64);
+      const img = document.getElementById('myAvatar');
+      img.src = myAvatarBase64;
+      img.style.display = 'inline-block';
+      if(conn && conn.open) sendAvatar();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // 圖片傳送流程
+  document.getElementById('imageSendBtn').addEventListener('click', () => {
+    document.getElementById('imageInput').click();
+  });
+  document.getElementById('imageInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')) {
+      alert('請選擇圖片檔案');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if(conn && conn.open) {
+        conn.send({type: 'image', data: reader.result});
+        logMessage(reader.result, true, 'image');
+      } else {
+        alert('尚未連線，無法傳送圖片');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // 清除檔案選擇器
+  });
+
+  // 錄音傳送流程
+  const voiceBtn = document.getElementById('voiceBtn');
+  voiceBtn.addEventListener('mousedown', startRecording);
+  voiceBtn.addEventListener('touchstart', startRecording);
+  voiceBtn.addEventListener('mouseup', stopRecording);
+  voiceBtn.addEventListener('touchend', stopRecording);
+
+  function startRecording(e) {
+    e.preventDefault();
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('此瀏覽器不支援錄音');
+      return;
+    }
+    voiceBtn.classList.add('recording');
+    audioChunks = [];
+    navigator.mediaDevices.getUserMedia({audio: true}).then(stream => {
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+      mediaRecorder.ondataavailable = evt => {
+        audioChunks.push(evt.data);
+      };
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, {type: 'audio/webm'});
+        const reader = new FileReader();
+        reader.onload = () => {
+          if(conn && conn.open) {
+            conn.send({type:'audio', data: reader.result});
+            logMessage(reader.result, true, 'audio');
+          } else {
+            alert('尚未連線，無法傳送語音');
+          }
+        };
+        reader.readAsDataURL(audioBlob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+    }).catch(() => {
+      alert('無法取得麥克風權限');
+      voiceBtn.classList.remove('recording');
+    });
+  }
+  function stopRecording(e) {
+    e.preventDefault();
+    voiceBtn.classList.remove('recording');
+    if(mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+    }
+  }
+
+  // 初始化頁面時讀快取ID與頭像
+  window.addEventListener('load', () => {
+    const savedId = localStorage.getItem('chat_id');
+    if(savedId) {
+      document.getElementById('rawMyId').value = savedId;
+      loadAvatar();
+    }
+  });
 </script>
 </body>
 </html>
