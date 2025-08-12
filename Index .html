@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>78</title>
+<style>
+  body {
+    font-family: "Noto Sans TC", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    max-width: 600px;
+    margin: 40px auto;
+    color: #333;
+  }
+  h2 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 25px;
+  }
+  #loginSection, #chatSection {
+    background: white;
+    padding: 20px 25px;
+    border-radius: 12px;
+    box-shadow: 0 6px 15px rgb(0 0 0 / 0.1);
+  }
+  label {
+    font-weight: 600;
+    font-size: 1.05em;
+    display: block;
+    margin-bottom: 12px;
+    color: #34495e;
+  }
+  input[type="text"], textarea {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 1em;
+    border: 1.8px solid #ddd;
+    border-radius: 8px;
+    transition: border-color 0.3s ease;
+    resize: none;
+    font-family: inherit;
+  }
+  input[type="text"]:focus, textarea:focus {
+    border-color: #3498db;
+    outline: none;
+  }
+  button {
+    background: #3498db;
+    border: none;
+    color: white;
+    font-weight: 600;
+    font-size: 1em;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    margin-top: 10px;
+  }
+  button:disabled {
+    background: #a0c4e8;
+    cursor: not-allowed;
+  }
+  button:hover:not(:disabled) {
+    background: #2980b9;
+  }
+  #chatSection > div:first-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+  }
+  #myId {
+    font-family: monospace;
+    font-size: 0.95em;
+    padding: 8px 12px;
+    background: #ecf0f1;
+    border-radius: 8px;
+    border: none;
+    user-select: all;
+  }
+  #logoutBtn {
+    background: #e74c3c;
+    margin-left: 15px;
+  }
+  #logoutBtn:hover {
+    background: #c0392b;
+  }
+  #status {
+    font-style: italic;
+    color: #7f8c8d;
+    margin-bottom: 15px;
+    min-height: 24px;
+  }
+  #chatbox {
+    height: 320px;
+    overflow-y: auto;
+    padding: 12px 16px;
+    border: 1.5px solid #ddd;
+    border-radius: 12px;
+    background: #fafafa;
+    font-size: 1em;
+    line-height: 1.4em;
+    white-space: pre-wrap;
+  }
+  .msg {
+    margin: 6px 0;
+    padding: 8px 12px;
+    border-radius: 14px;
+    max-width: 80%;
+    word-wrap: break-word;
+  }
+  .msg.self {
+    background: #d6eaf8;
+    color: #2c3e50;
+    margin-left: auto;
+  }
+  .msg.peer {
+    background: #d5f5e3;
+    color: #145a32;
+    margin-right: auto;
+  }
+  #inputArea {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+  }
+  #inputMsg {
+    flex-grow: 1;
+    min-height: 50px;
+    border-radius: 12px;
+    border: 1.8px solid #ddd;
+    padding: 12px 15px;
+    font-size: 1em;
+    font-family: inherit;
+    resize: none;
+    transition: border-color 0.3s ease;
+  }
+  #inputMsg:focus {
+    border-color: #3498db;
+    outline: none;
+  }
+  #sendBtn {
+    width: 90px;
+    font-weight: 700;
+    border-radius: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h2></h2>
+
+<div id="loginSection">
+  <label for="rawMyId">你的ID（可中文、英文、數字）:</label>
+  <input type="text" id="rawMyId" placeholder="輸入你的ID" autocomplete="off" />
+  <button id="loginBtn">登入並建立連線</button>
+</div>
+
+<div id="chatSection" style="display:none;">
+  <div>
+    <input type="text" id="myId" readonly title="你的編碼ID（複製給對方）" />
+    <button id="logoutBtn" title="登出並重置">登出</button>
+  </div>
+
+  <label for="rawPeerId" style="margin-top:12px;">對方ID（可中文、英文、數字）:</label>
+  <input type="text" id="rawPeerId" placeholder="輸入對方ID" autocomplete="off" />
+  <button id="connectBtn" style="margin-top:6px;">連線</button>
+
+  <div id="status">狀態：尚未登入</div>
+
+  <div id="chatbox"></div>
+
+  <div id="inputArea">
+    <textarea id="inputMsg" placeholder="輸入訊息，按 Enter 送出" disabled></textarea>
+    <button id="sendBtn" disabled>送出</button>
+  </div>
+</div>
+
+<!-- PeerJS CDN -->
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<script>
+  let peer = null;
+  let conn = null;
+
+  function base64UrlEncode(str) {
+    return btoa(unescape(encodeURIComponent(str)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  }
+
+  function base64UrlDecode(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) {
+      str += '=';
+    }
+    return decodeURIComponent(escape(atob(str)));
+  }
+
+  function playBeep() {
+    try {
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 800;
+      gainNode.gain.value = 0.2;
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      oscillator.start();
+
+      setTimeout(() => {
+        oscillator.stop();
+        ctx.close();
+      }, 150);
+    } catch(e) {
+      console.warn('AudioContext not available:', e);
+    }
+  }
+
+  function logMessage(text, isSelf) {
+    const chatbox = document.getElementById('chatbox');
+    const div = document.createElement('div');
+    div.className = 'msg ' + (isSelf ? 'self' : 'peer');
+    div.textContent = (isSelf ? '你: ' : '對方: ') + text;
+    chatbox.appendChild(div);
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
+
+  function setStatus(text) {
+    document.getElementById('status').textContent = '狀態：' + text;
+  }
+
+  function enableChat(enable) {
+    document.getElementById('inputMsg').disabled = !enable;
+    document.getElementById('sendBtn').disabled = !enable;
+    if(enable) document.getElementById('inputMsg').focus();
+  }
+
+  function sendMessage(text) {
+    if (!conn || conn.open === false) return;
+    conn.send(text);
+    logMessage(text, true);
+  }
+
+  document.getElementById('loginBtn').onclick = () => {
+    const rawId = document.getElementById('rawMyId').value.trim();
+    if (!rawId) {
+      alert('請輸入你的ID');
+      return;
+    }
+    const encodedId = base64UrlEncode(rawId);
+
+    peer = new Peer(encodedId, { debug: 2 });
+
+    peer.on('open', (id) => {
+      document.getElementById('myId').value = id;
+      setStatus('等待連線...');
+      enableChat(false);
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('chatSection').style.display = 'block';
+    });
+
+    peer.on('connection', (connection) => {
+      if (conn) {
+        connection.on('open', () => {
+          connection.send('已連線，拒絕新的連線');
+          connection.close();
+        });
+        return;
+      }
+      conn = connection;
+      setupConnection();
+    });
+
+    peer.on('error', err => {
+      alert('Peer 錯誤: ' + err);
+      setStatus('錯誤，請重新登入');
+      peer.destroy();
+      peer = null;
+      document.getElementById('loginBtn').disabled = false;
+      document.getElementById('rawMyId').disabled = false;
+    });
+
+    document.getElementById('loginBtn').disabled = true;
+    document.getElementById('rawMyId').disabled = true;
+  };
+
+  function setupConnection() {
+    setStatus('連線中...');
+    enableChat(false);
+
+    conn.on('open', () => {
+      setStatus('已連線');
+      enableChat(true);
+      logMessage('已連接對方', false);
+    });
+
+    conn.on('data', (data) => {
+      logMessage(data, false);
+      playBeep();
+    });
+
+    conn.on('close', () => {
+      setStatus('連線中斷');
+      enableChat(false);
+      conn = null;
+    });
+
+    conn.on('error', (err) => {
+      setStatus('錯誤: ' + err);
+      enableChat(false);
+      conn = null;
+    });
+  }
+
+  document.getElementById('connectBtn').onclick = () => {
+    if (!peer) {
+      alert('請先登入');
+      return;
+    }
+    if (conn) {
+      alert('已連線，請先重新整理頁面');
+      return;
+    }
+    const rawPeerId = document.getElementById('rawPeerId').value.trim();
+    if (!rawPeerId) {
+      alert('請輸入對方ID');
+      return;
+    }
+    const peerId = base64UrlEncode(rawPeerId);
+    conn = peer.connect(peerId);
+    setupConnection();
+  };
+
+  // 按鈕送出訊息
+  document.getElementById('sendBtn').onclick = () => {
+    const input = document.getElementById('inputMsg');
+    const text = input.value.trim();
+    if (!text || !conn || conn.open === false) return;
+    sendMessage(text);
+    input.value = '';
+    input.focus();
+  };
+
+  // 監聽 textarea 按鍵事件，Enter 送出，Shift+Enter 換行
+  document.getElementById('inputMsg').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // 防止換行
+      const input = e.target;
+      const text = input.value.trim();
+      if (!text) return;
+      sendMessage(text);
+      input.value = '';
+    }
+  });
+
+  // 登出重置
+  document.getElementById('logoutBtn').onclick = () => {
+    if (conn) {
+      conn.close();
+      conn = null;
+    }
+    if (peer) {
+      peer.destroy();
+      peer = null;
+    }
+    document.getElementById('rawMyId').disabled = false;
+    document.getElementById('loginBtn').disabled = false;
+    document.getElementById('rawMyId').value = '';
+    document.getElementById('myId').value = '';
+    document.getElementById('rawPeerId').value = '';
+    document.getElementById('inputMsg').value = '';
+    document.getElementById('chatbox').innerHTML = '';
+    document.getElementById('loginSection').style.display = 'block';
+    document.getElementById('chatSection').style.display = 'none';
+    setStatus('尚未登入');
+    enableChat(false);
+  };
+</script>
+</body>
+</html>
